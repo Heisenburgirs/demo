@@ -1,0 +1,12 @@
+[submodule "monorepo/contracts/superapp/lib/forge-std"]
+	path = monorepo/contracts/superapp/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "monorepo/contracts/superapp/lib/superfluid-protocol-monorepo"]
+	path = monorepo/contracts/superapp/lib/superfluid-protocol-monorepo
+	url = https://github.com/superfluid-finance/protocol-monorepo
+[submodule "monorepo/contracts/superapp/lib/ethereum-contracts"]
+	path = monorepo/contracts/superapp/lib/ethereum-contracts
+	url = https://github.com/superfluid-finance/ethereum-contracts
+[submodule "monorepo/contracts/superapp/lib/openzeppelin-contracts"]
+	path = monorepo/contracts/superapp/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
