@@ -10,6 +10,7 @@ import CELO from "../public/CELO.png"
 import DCAOverlay from "../components/DCAOverlay";
 import { ethers } from "ethers";
 import cfaABI from "../components/cfa.abi.json"
+import sbIncentivesAppABI from "../components/abi.json"
 
 // Mock data for DCA rewards and portfolio
 const dcaRewards = [
@@ -30,6 +31,29 @@ const Home: NextPage = () => {
 
   const handleDCAClick = () => {
     setIsDCAOverlayOpen(true);
+  };
+
+  const handleClaimTokens = async () => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contractAddress = "0x2436029135AdeDcf55F346Da15e525B680b64545";
+      
+      // Create an instance of the contract
+      const sbIncentivesAppContract = new ethers.Contract(contractAddress, sbIncentivesAppABI, signer);
+
+      // Call the claimAllTokens function
+      const tx = await sbIncentivesAppContract.claimAllTokens();
+      
+      // Wait for the transaction to be mined
+      await tx.wait();
+
+      console.log("Tokens claimed successfully!");
+      alert("Tokens claimed successfully!");
+    } catch (error) {
+      console.error("Error claiming tokens:", error);
+      alert("Failed to claim tokens. Please try again.");
+    }
   };
 
   const handleUpdateFlow = async (tokenAddress: string, receiver: string) => {
@@ -308,7 +332,10 @@ const Home: NextPage = () => {
                             Update
                           </button>
                       </div>
-                      <button className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors">
+                      <button 
+                        onClick={handleClaimTokens}
+                        className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
+                      >
                         Claim
                       </button>
                       <button 
