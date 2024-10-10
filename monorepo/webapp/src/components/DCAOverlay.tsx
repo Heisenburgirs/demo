@@ -203,14 +203,20 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
           </div>
         </div>
         {isConnected ? (
-          <button onClick={() => {handleStartStream("cUSD / CELO", amount)}} className="w-full bg-[#36be91] text-white rounded-md py-3 font-bold hover:bg-[#2ea17d]">
-            Start Stream
-          </button>
-        ) : (
-          <button className="w-full bg-[#36be91] text-white rounded-md py-3 font-bold hover:bg-[#2ea17d]">
-            Connect Wallet
-          </button>
-        )}
+					<button 
+						onClick={() => {!sendingStream && handleStartStream("cUSD / CELO", amount)}} 
+						className={`w-full bg-[#36be91] text-white rounded-md py-3 font-bold ${
+							sendingStream ? 'opacity-75 cursor-not-allowed animate-pulse' : 'hover:bg-[#2ea17d]'
+						}`}
+						disabled={sendingStream}
+					>
+						{sendingStream ? 'Starting stream' : 'Start Stream'}
+					</button>
+				) : (
+					<button className="w-full bg-[#36be91] text-white rounded-md py-3 font-bold hover:bg-[#2ea17d]">
+						Connect Wallet
+					</button>
+				)}
       </div>
     </div>
   );

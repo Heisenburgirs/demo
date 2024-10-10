@@ -35,13 +35,13 @@ SBIncentivesApp.FlowCreated.handler(async ({ event, context }) => {
     flowRate,
   };
 
-  try {
+  /*try {
     const tx = await sbIncentivesAppContract.createStreamToTorex(flowRate);
     await tx.wait();
     context.log.info("createStreamToTorex transaction successful");
   } catch (error) {
     context.log.error("Error calling createStreamToTorex:", error);
-  }
+  }*/
 
   await context.SBIncentivesApp_FlowCreated.set(entity);
 });
@@ -54,13 +54,13 @@ SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
     remainingInflow,
   };
 
-  try {
+  /*try {
     const tx = await sbIncentivesAppContract.deleteStreamToTorex(remainingInflow);
     await tx.wait();
     context.log.info("deleteStreamToTorex transaction successful");
   } catch (error) {
     context.log.error("Error calling deleteStreamToTorex:", error);
-  }
+  }*/
 
   await context.SBIncentivesApp_FlowDeleted.set(entity);
 });
@@ -73,13 +73,13 @@ SBIncentivesApp.FlowUpdated.handler(async ({ event, context }) => {
     inflowChange,
   };
 
-  try {
+  /*try {
     const tx = await sbIncentivesAppContract.updateStreamToTorex(inflowChange);
     await tx.wait();
     context.log.info("updateStreamToTorex transaction successful");
   } catch (error) {
     context.log.error("Error calling updateStreamToTorex:", error);
-  }
+  }*/
 
   await context.SBIncentivesApp_FlowUpdated.set(entity);
 });
