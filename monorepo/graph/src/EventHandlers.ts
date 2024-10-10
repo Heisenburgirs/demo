@@ -51,7 +51,7 @@ SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
   const entity: SBIncentivesApp_FlowDeleted = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     sender,
-    remainingInflow,
+    remainingInflow, 
   };
 
   /*try {
