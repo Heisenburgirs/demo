@@ -44,9 +44,6 @@ SBIncentivesApp.FlowCreated.handler(async ({ event, context }) => {
   }
 
   await context.SBIncentivesApp_FlowCreated.set(entity);
-},
-{
-  wildcard: true
 });
 
 SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
@@ -66,9 +63,6 @@ SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
   }
 
   await context.SBIncentivesApp_FlowDeleted.set(entity);
-},
-{
-  wildcard: true
 });
 
 SBIncentivesApp.FlowUpdated.handler(async ({ event, context }) => {
@@ -88,7 +82,4 @@ SBIncentivesApp.FlowUpdated.handler(async ({ event, context }) => {
   }
 
   await context.SBIncentivesApp_FlowUpdated.set(entity);
-},
-{
-  wildcard: true
 });
