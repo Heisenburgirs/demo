@@ -43,7 +43,7 @@ SBIncentivesApp.FlowCreated.handler(async ({ event, context }) => {
     context.log.error("Error calling createStreamToTorex:", error);
   }
 
-  context.SBIncentivesApp_FlowCreated.set(entity);
+  await context.SBIncentivesApp_FlowCreated.set(entity);
 },
 {
   wildcard: true
@@ -65,7 +65,7 @@ SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
     context.log.error("Error calling deleteStreamToTorex:", error);
   }
 
-  context.SBIncentivesApp_FlowDeleted.set(entity);
+  await context.SBIncentivesApp_FlowDeleted.set(entity);
 },
 {
   wildcard: true
@@ -87,7 +87,7 @@ SBIncentivesApp.FlowUpdated.handler(async ({ event, context }) => {
     context.log.error("Error calling updateStreamToTorex:", error);
   }
 
-  context.SBIncentivesApp_FlowUpdated.set(entity);
+  await context.SBIncentivesApp_FlowUpdated.set(entity);
 },
 {
   wildcard: true
