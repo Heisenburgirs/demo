@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: envio-indexer
+networks:
+- id: 42220
+  start_block: 0
+  contracts:
+  - name: SBIncentivesApp
+    address:
+    - 0x87621111D4810EA9b56bD87B79421919cACcA39e
+    handler: src/EventHandlers.ts
+    events:
+    - event: FlowCreated(address indexed sender, int96 flowRate)
+    - event: FlowDeleted(address indexed sender, int96 remainingInflow)
+    - event: FlowUpdated(address indexed sender, int96 inflowChange)
+rollback_on_reorg: false

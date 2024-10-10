@@ -1,0 +1,18 @@
+type SBIncentivesApp_FlowCreated {
+  id: ID!
+  sender: String!
+  flowRate: BigInt!
+}
+
+type SBIncentivesApp_FlowDeleted {
+  id: ID!
+  sender: String!
+  remainingInflow: BigInt!
+}
+
+type SBIncentivesApp_FlowUpdated {
+  id: ID!
+  sender: String!
+  inflowChange: BigInt!
+}
+
