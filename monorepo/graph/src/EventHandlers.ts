@@ -28,14 +28,15 @@ const sbIncentivesAppABI = [
 const sbIncentivesAppContract = new ethers.Contract(SB_INCENTIVES_APP_ADDRESS, sbIncentivesAppABI, wallet);
 
 SBIncentivesApp.FlowCreated.handler(async ({ event, context }) => {
+  const { sender, flowRate } = event.params;
   const entity: SBIncentivesApp_FlowCreated = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
-    sender: event.params.sender,
-    flowRate: event.params.flowRate,
+    sender,
+    flowRate,
   };
 
   try {
-    const tx = await sbIncentivesAppContract.createStreamToTorex(event.params.flowRate);
+    const tx = await sbIncentivesAppContract.createStreamToTorex(flowRate);
     await tx.wait();
     context.log.info("createStreamToTorex transaction successful");
   } catch (error) {
@@ -49,14 +50,15 @@ SBIncentivesApp.FlowCreated.handler(async ({ event, context }) => {
 });
 
 SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
+  const { sender, remainingInflow } = event.params;
   const entity: SBIncentivesApp_FlowDeleted = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
-    sender: event.params.sender,
-    remainingInflow: event.params.remainingInflow,
+    sender,
+    remainingInflow,
   };
 
   try {
-    const tx = await sbIncentivesAppContract.deleteStreamToTorex(event.params.remainingInflow);
+    const tx = await sbIncentivesAppContract.deleteStreamToTorex(remainingInflow);
     await tx.wait();
     context.log.info("deleteStreamToTorex transaction successful");
   } catch (error) {
@@ -70,14 +72,15 @@ SBIncentivesApp.FlowDeleted.handler(async ({ event, context }) => {
 });
 
 SBIncentivesApp.FlowUpdated.handler(async ({ event, context }) => {
+  const { sender, inflowChange } = event.params;
   const entity: SBIncentivesApp_FlowUpdated = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
-    sender: event.params.sender,
-    inflowChange: event.params.inflowChange,
+    sender,
+    inflowChange,
   };
 
   try {
-    const tx = await sbIncentivesAppContract.updateStreamToTorex(event.params.inflowChange);
+    const tx = await sbIncentivesAppContract.updateStreamToTorex(inflowChange);
     await tx.wait();
     context.log.info("updateStreamToTorex transaction successful");
   } catch (error) {
