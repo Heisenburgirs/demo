@@ -4,7 +4,22 @@ import cUSD from "../public/cUSD.png"
 import CELO from "../public/CELO.png"
 import { useAccount } from 'wagmi';
 import { ethers } from "ethers"
-import cfaABI from "./cfa.abi.json"
+
+const cfaABI = [
+	{
+		"inputs": [
+			{"internalType": "address", "name": "token", "type": "address"},
+			{"internalType": "address", "name": "sender", "type": "address"},
+			{"internalType": "address", "name": "receiver", "type": "address"},
+			{"internalType": "int96", "name": "flowRate", "type": "int96"},
+			{"internalType": "bytes", "name": "userData", "type": "bytes"}
+		],
+		"name": "createFlow",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
 
 interface DCAOverlayProps {
   onClose: () => void;
@@ -108,14 +123,14 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
 			const flowRate = amountInWei.div(30 * 24 * 60 * 60);
 			console.log('Calculated flow rate:', flowRate.toString());
 	
-			const createFlow = async (tokenAddress: string, receiver: string, flowRate: ethers.BigNumber) => {
+			const createFlow = async (tokenAddress: string, sender: string, receiver: string, flowRate: ethers.BigNumber) => {
 				try {
-					console.log('Creating flow with params:', { tokenAddress, receiver, flowRate: flowRate.toString() });
+					console.log('Creating flow with params:', { tokenAddress, sender, receiver, flowRate: flowRate.toString() });
 					const tx = await forwarderContract.createFlow(
 						tokenAddress,
-						await signer.getAddress(),
+						sender,
 						receiver,
-						flowRate,
+						10000000000,
 						"0x",
 						{ gasLimit: 1000000 }
 					);
@@ -127,8 +142,10 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
 					throw error;
 				}
 			};
-	
-			await createFlow(superCeloAddress, address, flowRate);
+			
+			// Use the correct order of arguments
+			const receiverAddress = '0x2436029135AdeDcf55F346Da15e525B680b64545';
+			await createFlow(superCeloAddress, address, receiverAddress, flowRate);
 	
 			console.log('Stream started successfully');
 			alert(`Stream started successfully for ${poolName}`);

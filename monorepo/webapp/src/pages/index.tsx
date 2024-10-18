@@ -26,11 +26,37 @@ const Home: NextPage = () => {
   
   const [isDCAOverlayOpen, setIsDCAOverlayOpen] = useState(false);
   const [updateAmount, setUpdateAmount] = useState('');
+  const [flowRate, setFlowRate] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const { address } = useAccount();
 
   const handleDCAClick = () => {
     setIsDCAOverlayOpen(true);
+  };
+
+  const handleCreateStreamToTorex = async () => {
+    if (!flowRate) {
+      alert("Please enter a flow rate in wei.");
+      return;
+    }
+
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contractAddress = "0x2436029135AdeDcf55F346Da15e525B680b64545";
+      const contract = new ethers.Contract(contractAddress, sbIncentivesAppABI, signer);
+
+      // Use the flowRate directly as wei
+      const tx = await contract.createStreamToTorex(flowRate);
+      await tx.wait();
+
+      console.log("Stream created successfully!");
+      alert("Stream to Torex created successfully!");
+    } catch (error) {
+      console.error("Error creating stream:", error);
+      alert("Failed to create stream. Please try again.");
+    }
   };
 
   const handleClaimTokens = async () => {
@@ -142,6 +168,14 @@ const Home: NextPage = () => {
                     Portfolio
                   </button>
                 </li>
+                <li>
+                  <button
+                    className={`text-[18px] ${activeTab === 'admin' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
+                    onClick={() => setActiveTab('admin')}
+                  >
+                    Admin
+                  </button>
+                </li>
               </ul>
             </nav>
           </div>
@@ -228,7 +262,7 @@ const Home: NextPage = () => {
       <main className="flex-grow p-8 overflow-auto z-50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold mb-6 text-[#fff]">
-            {activeTab === 'dca' ? 'Discover Incentives' : 'Your Portfolio'}
+            {activeTab === 'dca' ? 'Discover Incentives' : activeTab === 'portfolio' ? 'Your Portfolio' : 'Admin Panel'}
           </h2>
           {activeTab === 'dca' && (
             <div className="mb-6 text-[#9b9ba8]">
@@ -347,6 +381,27 @@ const Home: NextPage = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'admin' && (
+            <div className="max-w-[400px] flex flex-col gap-4">
+              <h3 className="text-xl font-bold text-white mb-4">Start Flows</h3>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder="Flow rate (tokens per second)"
+                  value={flowRate}
+                  onChange={(e) => setFlowRate(e.target.value)}
+                  className="bg-[#1a1b1f] w-[200px] text-white rounded px-3 py-2 text-sm"
+                />
+                <button 
+                  onClick={handleCreateStreamToTorex}
+                  className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
+                >
+                  Create Stream to Torex
+                </button>
               </div>
             </div>
           )}
