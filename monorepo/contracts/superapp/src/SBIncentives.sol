@@ -2,69 +2,64 @@
 pragma solidity ^0.8.0;
 
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import {CFASuperAppBase} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFASuperAppBase.sol";
-import {ISuperfluid, ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, ISuperToken, ISuperfluidPool, ISuperApp, PoolConfig, IERC20 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import { ISETH } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/tokens/ISETH.sol";
 import { ITorex } from "./interfaces/ITorex.sol";
+import { Scaler } from "./utils/Scaler.sol";
+import { toInt96, UINT_100PCT_PM, INT_100PCT_PM } from "./utils/MathExtra.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-interface IMacroForwarder {
-    function runMacro(address macroAddress, bytes memory params) external;
-}
+
 
 contract SBIncentives {
     using SuperTokenV1Library for ISuperToken;
     using SuperTokenV1Library for ISETH;
 
-    IMacroForwarder public immutable macroForwarder; // 0xfD01285b9435bc45C243E5e7F978E288B2912de6 (on all networks)
-    address public immutable sbMacroAddress; // 0x34Db26737185671215fB90E2F8C6fd8C4F8eB944 (On Optimism Sepolia)
-
     ITorex public torex;
 
-    constructor(address _macroForwarder, address _sbMacroAddress) {
-        macroForwarder = IMacroForwarder(_macroForwarder);
-        sbMacroAddress = _sbMacroAddress;
+    ISuperToken public immutable inToken;
+    ISuperToken public immutable outToken;
+    ISuperToken public immutable rewardToken;
+
+    PoolConfig private _rewardPoolConfig;
+    ISuperfluidPool internal immutable _rewardPool;
+    Scaler internal immutable _rewardPoolScaler;
+
+    constructor(address torexAddr, ISuperToken rewardTokenAddr) {
+        torex = ITorex(torexAddr);
+        (inToken, outToken) = torex.getPairedTokens();
+
+        rewardToken = rewardTokenAddr;
+
+        _rewardPoolConfig.transferabilityForUnitsOwner = false;
+        _rewardPoolConfig.distributionFromAnyAddress = false;
+
+        _rewardPool = rewardToken.createPool(address(this), _rewardPoolConfig);
     }
 
-    /**
-     * @dev A function which start or updates a SuperBoring DCA flow.
-     * @param torexAddr address of the Torex contract. The token address is derived from this (inToken).
-     * @param flowRate flowrate to be set for the flow to the Torex contract. The pre-existing flowrate must be 0 (no flow).
-     * @param distributor address of the distributor, or zero address if none.
-     * @param referrer address of the referrer, or zero address if none.
-     * @param upgradeAmount amount (18 decimals) to upgrade from underlying ERC20 to SuperToken.
-     *   - if `type(uint256).max`, the maximum possible amount is upgraded (current allowance).
-     *   - otherwise, the specified amount is upgraded. Requires sufficient underlying balance and allowance, otherwise the transaction will revert.
-     * Note that upgradeAmount shall be 0 if inToken has no underlying ERC20 token.
-     */
-
-    function startSuperBoringDCA(
-        address torexAddr,
-        int96 flowRate,
-        address distributor,
-        address referrer,
-        uint256 upgradeAmount
-    ) external {
-        bytes memory params = abi.encode(torexAddr, flowRate, distributor, referrer, upgradeAmount);
-        macroForwarder.runMacro(sbMacroAddress, params);
+    function rewardTokenPool() external view returns (ISuperfluidPool) {
+        return _rewardPool;
     }
 
-    function startSuperBoringDCA(
-        address torexAddr,
-        int96 flowRate,
-        address distributor,
-        address referrer,
-        uint256 upgradeAmount,
-        ISuperToken incentivisedInToken,
-        ISuperToken incentivisedOutToken
-    ) external {
-        bytes memory params = abi.encode(torexAddr, flowRate, distributor, referrer, upgradeAmount);
-        macroForwarder.runMacro(sbMacroAddress, params);
+    function registerOrUpdateStream(address user) external {
+        // int96 flowRate = inToken.getFlowRate(user, address(torex));
+        // uint128 newUnits = uint128(SafeCast.toInt128(_rewardPoolScaler.scaleValue(flowRate)));
 
-        (ISuperToken inToken, ISuperToken outToken) = ITorex(torexAddr).getPairedTokens();
-
-        if (inToken == incentivisedInToken && outToken == incentivisedOutToken) {
-            // TODO: reward the user
-            return;
-        }
+        uint128 newUnits = torex.outTokenDistributionPool().getUnits(user);
+        _rewardPool.updateMemberUnits(user, newUnits);
     }
+
+    function claimRewards(address user) external {
+        // check if users can connect to rewards pool themselves and collect it beforehand
+        _rewardPool.claimAll(user);
+    }
+
+    function startStreamToPool(int96 requestedFlowRate) external {
+        rewardToken.distributeFlow(address(this), _rewardPool, requestedFlowRate);
+    }
+
+    function connectToPool() external {
+        inToken.connectPool(_rewardPool);
+    }
+
 }

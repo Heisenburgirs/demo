@@ -8,6 +8,9 @@ import {MacroForwarder} from "@superfluid-finance/ethereum-contracts/contracts/u
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import {ITorex} from "../src/interfaces/ITorex.sol";
 import {SBIncentives} from "../src/SBIncentives.sol";
+import { SBMacro } from "../src/SBMacro.sol";
+import { Scaler } from "../src/utils/Scaler.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {console} from "forge-std/console.sol";
 
 using SuperTokenV1Library for ISuperToken;
@@ -25,12 +28,17 @@ contract SBIncentivesTest is Test {
     ISuperToken inToken1;
     ISuperToken inToken2;
     MacroForwarder macroFwd;
+    SBIncentives i;
+    SBMacro m;
+
     address alice = address(0x721);
+    address bob = address(0x722);
+
     int96 constant DEFAULT_FLOWRATE = 4 ether;
     address DEFAULT_DISTRIBUTOR = address(0x69);
     address DEFAULT_REFERRER = address(0x70);
-    address macroFwdAddr = vm.envAddress("MACRO_FWD_ADDR");
-    address macroAddress = vm.envAddress("MACRO_ADDR");
+
+    uint256 constant upgradeAmount = 120000 ether;
 
     constructor() {
         string memory rpc = vm.envString("RPC");
@@ -41,9 +49,8 @@ contract SBIncentivesTest is Test {
         torex1 = ITorex(torex1Addr);
         address torex2Addr = vm.envAddress("TOREX2_ADDR");
         torex2 = ITorex(torex2Addr);
-        // address macroFwdAddr = vm.envAddress("MACRO_FWD_ADDR");
+        address macroFwdAddr = vm.envAddress("MACRO_FWD_ADDR");
         macroFwd = MacroForwarder(macroFwdAddr);
-        // address macroAddress = vm.envAddress("MACRO_ADDR");
     }
 
     function setUp() public {
@@ -52,58 +59,249 @@ contract SBIncentivesTest is Test {
         
         // can't directly deal SuperTokens (see https://github.com/foundry-rs/forge-std/issues/570), thus using upgrade()
         vm.deal(alice, 1e20 ether);
-        deal(inToken1.getUnderlyingToken(), alice, 1500000 ether);
-    }
+        deal(inToken1.getUnderlyingToken(), alice, 1_500_000 ether);
+        deal(inToken1.getUnderlyingToken(), bob, 1_500_000 ether);
 
-    function testSomething() external {
-        SBIncentives i = new SBIncentives(macroFwdAddr, macroAddress);
+        m = new SBMacro();
+        i = new SBIncentives(address(torex1), inToken1);
 
-        vm.startPrank(alice);
-
-        console.log(address(inToken1));
-        console.log(inToken1.balanceOf(alice));
-        console.log(inToken1.getUnderlyingToken());
-        console.log(IERC20(inToken1.getUnderlyingToken()).balanceOf(alice));
-        
         address underlyingToken = inToken1.getUnderlyingToken();
+
+        vm.prank(alice);
         IERC20(underlyingToken).approve(address(inToken1), type(uint256).max);
-        IERC20(underlyingToken).approve(address(i), type(uint256).max);
-        IERC20(underlyingToken).approve(macroAddress, type(uint256).max);
-        inToken1.approve(address(i), type(uint256).max);
-        inToken1.approve(macroAddress, type(uint256).max);
-        // inToken1.upgrade(120000 ether);
 
-        IERC20(underlyingToken).transfer(address(i), 120000 ether);
-        inToken1.transfer(address(i), 120000 ether);
-
-        i.startSuperBoringDCA(
-            address(torex1),
-            DEFAULT_FLOWRATE,
-            DEFAULT_DISTRIBUTOR,
-            DEFAULT_REFERRER,
-            120000 ether
-        );
-
-        console.log(address(inToken1));
-        console.log(inToken1.balanceOf(alice));
-        console.log(inToken1.getUnderlyingToken());
-        console.log(IERC20(inToken1.getUnderlyingToken()).balanceOf(alice));
-
+        vm.startPrank(bob);
+        IERC20(underlyingToken).approve(address(inToken1), type(uint256).max);
+        inToken1.upgrade(upgradeAmount);
+        inToken1.transfer(address(i), upgradeAmount);
         vm.stopPrank();
 
-        // ISuperfluidPool outTokenDistributionPool = torex2
-        //     .outTokenDistributionPool();
+        // console.log(address(inToken1));
+        // console.log(inToken1.balanceOf(alice));
+        // console.log(inToken1.getUnderlyingToken());
+        // console.log(IERC20(inToken1.getUnderlyingToken()).balanceOf(alice));
+    }
 
-        // assertGt(
-        //     outTokenDistributionPool.getUnits(alice),
-        //     0,
-        //     "no outTokenDistributionPool units assigned"
-        // );
+    function testStreamToTorex() external {
+        vm.prank(alice);
+        macroFwd.runMacro(m, abi.encode(address(torex1), DEFAULT_FLOWRATE, DEFAULT_DISTRIBUTOR, DEFAULT_REFERRER, upgradeAmount));
+        
+        i.registerOrUpdateStream(alice);
+
+        ISuperfluidPool outTokenDistributionPool = torex1.outTokenDistributionPool();
+        ISuperfluidPool rewardTokenPool = i.rewardTokenPool();
+
+        assertGt(
+            outTokenDistributionPool.getUnits(alice),
+            0,
+            "no outTokenDistributionPool units assigned"
+        );
+        assertGt(
+            rewardTokenPool.getUnits(alice),
+            0,
+            "no rewardTokenPool units assigned"
+        );
         assertEq(
             inToken1.getFlowRate(alice, address(torex1)),
             DEFAULT_FLOWRATE,
             "wrong flowrate to torex"
         );
+    }
+
+    function testStreamToTorexAndConnectPool() external {
+        vm.startPrank(alice);
+        macroFwd.runMacro(m, abi.encode(address(torex1), DEFAULT_FLOWRATE, DEFAULT_DISTRIBUTOR, DEFAULT_REFERRER, upgradeAmount));
+        i.registerOrUpdateStream(alice);
+        i.connectToPool();
+        vm.stopPrank();
+
+        ISuperfluidPool outTokenDistributionPool = torex1.outTokenDistributionPool();
+        ISuperfluidPool rewardTokenPool = i.rewardTokenPool();
+
+        i.startStreamToPool(DEFAULT_FLOWRATE);
+
+        assertGt(
+            outTokenDistributionPool.getUnits(alice),
+            0,
+            "no outTokenDistributionPool units assigned"
+        );
+        assertGt(
+            rewardTokenPool.getUnits(alice),
+            0,
+            "no rewardTokenPool units assigned"
+        );
+        assertEq(
+            inToken1.getFlowRate(alice, address(torex1)),
+            DEFAULT_FLOWRATE,
+            "wrong flowrate to torex"
+        );
+        assertGt(
+            rewardTokenPool.getMemberFlowRate(alice),
+            0,
+            "no rewardToken flowRate established"
+        );
+        assertGt(
+            rewardTokenPool.getTotalFlowRate(),
+            0,
+            "no rewardToken flowRate established"
+        );
+        assertGt(
+            rewardTokenPool.getTotalConnectedFlowRate(),
+            rewardTokenPool.getTotalFlowRate(),
+            "alice isn't getting the full connected flowRate"
+        );
+        assertEq(
+            rewardTokenPool.getTotalDisconnectedFlowRate(),
+            0,
+            "disconnected rewardToken flowRate is not zero"
+        );
+        assertGt(
+            rewardTokenPool.getTotalUnits(),
+            0,
+            "no rewardToken units assigned"
+        );
+        assertGt(
+            rewardTokenPool.getTotalConnectedUnits(),
+            rewardTokenPool.getTotalUnits(),
+            "alice didn't get the full connected units"
+        );
+        assertEq(
+            rewardTokenPool.getTotalDisconnectedUnits(),
+            0,
+            "disconnected rewardToken units is not zero"
+        );
+
+
+        console.log("Reward Pool Units:", rewardTokenPool.getUnits(alice));
+        console.log("Distribution Pool Units:", outTokenDistributionPool.getUnits(alice));
+        console.log("Reward Pool Flow Rate:", rewardTokenPool.getMemberFlowRate(alice));
+        console.log("Distribution Pool Flow Rate:", outTokenDistributionPool.getMemberFlowRate(alice));
+
+        console.log("Total Reward Units:", rewardTokenPool.getTotalUnits());
+        console.log("Total Connected Units:", rewardTokenPool.getTotalConnectedUnits());
+        console.log("Total Disconnected Units:", rewardTokenPool.getTotalDisconnectedUnits());
+        console.log("Total Reward Flow Rate:", rewardTokenPool.getTotalFlowRate());
+        console.log("Total Connected Flow Rate:", rewardTokenPool.getTotalConnectedFlowRate());
+        console.log("Total Disconnected Flow Rate:", rewardTokenPool.getTotalDisconnectedFlowRate());
+
+        assertEq(
+            inToken1.getFlowRate(alice, address(torex1)),
+            DEFAULT_FLOWRATE + 1 ether,
+            "wrong flowrate to torex"
+        );
+
+        // console.log("Reward Pool Units:", rewardTokenPool.getUnits(alice));
+        // console.log("Distribution Pool Units:", outTokenDistributionPool.getUnits(alice));
+        // console.log("Reward Pool Flow Rate:", rewardTokenPool.getMemberFlowRate(alice));
+        // console.log("Distribution Pool Flow Rate:", outTokenDistributionPool.getMemberFlowRate(alice));
+
+        // console.log("Total Reward Units:", rewardTokenPool.getTotalUnits());
+        // console.log("Total Connected Units:", rewardTokenPool.getTotalConnectedUnits());
+        // console.log("Total Disconnected Units:", rewardTokenPool.getTotalDisconnectedUnits());
+        // console.log("Total Reward Flow Rate:", rewardTokenPool.getTotalFlowRate());
+        // console.log("Total Connected Flow Rate:", rewardTokenPool.getTotalConnectedFlowRate());
+        // console.log("Total Disconnected Flow Rate:", rewardTokenPool.getTotalDisconnectedFlowRate());
+    }
+
+    function testStreamToTorexAndConnectPoolMultiple() external {
+        vm.startPrank(alice);
+        macroFwd.runMacro(m, abi.encode(address(torex1), DEFAULT_FLOWRATE, DEFAULT_DISTRIBUTOR, DEFAULT_REFERRER, upgradeAmount));
+        i.registerOrUpdateStream(alice);
+        i.connectToPool();
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        macroFwd.runMacro(m, abi.encode(address(torex1), DEFAULT_FLOWRATE, DEFAULT_DISTRIBUTOR, DEFAULT_REFERRER, upgradeAmount));
+        i.registerOrUpdateStream(bob);
+        i.connectToPool();
+        vm.stopPrank();
+
+        ISuperfluidPool outTokenDistributionPool = torex1.outTokenDistributionPool();
+        ISuperfluidPool rewardTokenPool = i.rewardTokenPool();
+
+        i.startStreamToPool(DEFAULT_FLOWRATE);
+
+        assertGt(
+            outTokenDistributionPool.getUnits(alice),
+            0,
+            "no outTokenDistributionPool units assigned"
+        );
+        assertGt(
+            rewardTokenPool.getUnits(alice),
+            0,
+            "no rewardTokenPool units assigned"
+        );
+        assertEq(
+            inToken1.getFlowRate(alice, address(torex1)),
+            DEFAULT_FLOWRATE,
+            "wrong flowrate to torex"
+        );
+        assertGt(
+            rewardTokenPool.getMemberFlowRate(alice),
+            0,
+            "no rewardToken flowRate established"
+        );
+        assertGt(
+            rewardTokenPool.getTotalFlowRate(),
+            0,
+            "no rewardToken flowRate established"
+        );
+        assertGt(
+            rewardTokenPool.getTotalConnectedFlowRate(),
+            rewardTokenPool.getTotalFlowRate(),
+            "alice isn't getting the full connected flowRate"
+        );
+        assertEq(
+            rewardTokenPool.getTotalDisconnectedFlowRate(),
+            0,
+            "disconnected rewardToken flowRate is not zero"
+        );
+        assertGt(
+            rewardTokenPool.getTotalUnits(),
+            0,
+            "no rewardToken units assigned"
+        );
+        assertGt(
+            rewardTokenPool.getTotalConnectedUnits(),
+            rewardTokenPool.getTotalUnits(),
+            "alice didn't get the full connected units"
+        );
+        assertEq(
+            rewardTokenPool.getTotalDisconnectedUnits(),
+            0,
+            "disconnected rewardToken units is not zero"
+        );
+
+
+        console.log("Reward Pool Units:", rewardTokenPool.getUnits(alice));
+        console.log("Distribution Pool Units:", outTokenDistributionPool.getUnits(alice));
+        console.log("Reward Pool Flow Rate:", rewardTokenPool.getMemberFlowRate(alice));
+        console.log("Distribution Pool Flow Rate:", outTokenDistributionPool.getMemberFlowRate(alice));
+
+        console.log("Total Reward Units:", rewardTokenPool.getTotalUnits());
+        console.log("Total Connected Units:", rewardTokenPool.getTotalConnectedUnits());
+        console.log("Total Disconnected Units:", rewardTokenPool.getTotalDisconnectedUnits());
+        console.log("Total Reward Flow Rate:", rewardTokenPool.getTotalFlowRate());
+        console.log("Total Connected Flow Rate:", rewardTokenPool.getTotalConnectedFlowRate());
+        console.log("Total Disconnected Flow Rate:", rewardTokenPool.getTotalDisconnectedFlowRate());
+
+        // assertEq(
+        //     inToken1.getFlowRate(alice, address(torex1)),
+        //     DEFAULT_FLOWRATE + 1 ether,
+        //     "wrong flowrate to torex"
+        // );
+
+        // console.log("Reward Pool Units:", rewardTokenPool.getUnits(alice));
+        // console.log("Distribution Pool Units:", outTokenDistributionPool.getUnits(alice));
+        // console.log("Reward Pool Flow Rate:", rewardTokenPool.getMemberFlowRate(alice));
+        // console.log("Distribution Pool Flow Rate:", outTokenDistributionPool.getMemberFlowRate(alice));
+
+        // console.log("Total Reward Units:", rewardTokenPool.getTotalUnits());
+        // console.log("Total Connected Units:", rewardTokenPool.getTotalConnectedUnits());
+        // console.log("Total Disconnected Units:", rewardTokenPool.getTotalDisconnectedUnits());
+        // console.log("Total Reward Flow Rate:", rewardTokenPool.getTotalFlowRate());
+        // console.log("Total Connected Flow Rate:", rewardTokenPool.getTotalConnectedFlowRate());
+        // console.log("Total Disconnected Flow Rate:", rewardTokenPool.getTotalDisconnectedFlowRate());
     }
 
     // function testWithoutUpgrade() external {
