@@ -14,7 +14,7 @@ import sbIncentivesAppABI from "../components/abi.json"
 
 // Mock data for DCA rewards and portfolio
 const dcaRewards = [
-  { name: 'cUSD / CELO', monthlyVolume: '21,734.632 USDC', monthlyRewards: '10 FLOW', isLive: true },
+  { name: 'CELOx / cUSDx', monthlyVolume: '21,734.632 cUSDx', monthlyRewards: '10 $FLOW', isLive: true },
 ];
 
 const portfolio = [
@@ -22,117 +22,15 @@ const portfolio = [
 ];
 
 const Home: NextPage = () => {
-  const [activeTab, setActiveTab] = useState('dca');
+  const [activeTab, setActiveTab] = useState('boosts');
   
   const [isDCAOverlayOpen, setIsDCAOverlayOpen] = useState(false);
   const [updateAmount, setUpdateAmount] = useState('');
-  const [flowRate, setFlowRate] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
 
   const { address } = useAccount();
 
   const handleDCAClick = () => {
     setIsDCAOverlayOpen(true);
-  };
-
-  const handleCreateStreamToTorex = async () => {
-    if (!flowRate) {
-      alert("Please enter a flow rate in wei.");
-      return;
-    }
-
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contractAddress = "0x2436029135AdeDcf55F346Da15e525B680b64545";
-      const contract = new ethers.Contract(contractAddress, sbIncentivesAppABI, signer);
-
-      // Use the flowRate directly as wei
-      const tx = await contract.createStreamToTorex(flowRate);
-      await tx.wait();
-
-      console.log("Stream created successfully!");
-      alert("Stream to Torex created successfully!");
-    } catch (error) {
-      console.error("Error creating stream:", error);
-      alert("Failed to create stream. Please try again.");
-    }
-  };
-
-  const handleClaimTokens = async () => {
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contractAddress = "0x2436029135AdeDcf55F346Da15e525B680b64545";
-      
-      // Create an instance of the contract
-      const sbIncentivesAppContract = new ethers.Contract(contractAddress, sbIncentivesAppABI, signer);
-
-      // Call the claimAllTokens function
-      const tx = await sbIncentivesAppContract.claimAllTokens();
-      
-      // Wait for the transaction to be mined
-      await tx.wait();
-
-      console.log("Tokens claimed successfully!");
-      alert("Tokens claimed successfully!");
-    } catch (error) {
-      console.error("Error claiming tokens:", error);
-      alert("Failed to claim tokens. Please try again.");
-    }
-  };
-
-  const handleUpdateFlow = async (tokenAddress: string, receiver: string) => {
-    if (!updateAmount) {
-      alert("Please enter a new amount to update the stream.");
-      return;
-    }
-
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const forwarderAddress = '0xcfA132E353cB4E398080B9700609bb008eceB125';
-      const forwarderContract = new ethers.Contract(forwarderAddress, cfaABI, signer);
-
-      const amountInWei = ethers.utils.parseEther(updateAmount);
-      const newFlowRate = amountInWei.div(30 * 24 * 60 * 60);
-
-      const tx = await forwarderContract.updateFlow(
-        tokenAddress,
-        await signer.getAddress(),
-        receiver,
-        newFlowRate,
-        "0x"
-      );
-      await tx.wait();
-      console.log("Flow updated successfully!");
-      alert("Stream updated successfully!");
-    } catch (error) {
-      console.error("Error updating flow:", error);
-      alert("Failed to update stream. Please try again.");
-    }
-  };
-
-  const handleDeleteFlow = async (tokenAddress: string, receiver: string) => {
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const forwarderAddress = '0xcfA132E353cB4E398080B9700609bb008eceB125';
-      const forwarderContract = new ethers.Contract(forwarderAddress, cfaABI, signer);
-
-      const tx = await forwarderContract.deleteFlow(
-        tokenAddress,
-        await signer.getAddress(),
-        receiver,
-        "0x"
-      );
-      await tx.wait();
-      console.log("Flow deleted successfully!");
-      alert("Stream deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting flow:", error);
-      alert("Failed to delete stream. Please try again.");
-    }
   };
 
   return (
@@ -149,15 +47,15 @@ const Home: NextPage = () => {
       <header className="py-4 sticky top-0 z-10 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-end space-x-6">
-            <h1 className="text-[22px] font-bold">Flowcentive</h1>
+            <h1 className="text-[22px] font-bold">SuperBoost</h1>
             <nav>
               <ul className="flex space-x-4">
                 <li>
                   <button
-                    className={`text-[18px] ${activeTab === 'dca' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
-                    onClick={() => setActiveTab('dca')}
+                    className={`text-[18px] ${activeTab === 'boosts' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
+                    onClick={() => setActiveTab('boosts')}
                   >
-                    DCA
+                    Boosts
                   </button>
                 </li>
                 <li>
@@ -166,14 +64,6 @@ const Home: NextPage = () => {
                     onClick={() => setActiveTab('portfolio')}
                   >
                     Portfolio
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className={`text-[18px] ${activeTab === 'admin' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
-                    onClick={() => setActiveTab('admin')}
-                  >
-                    Admin
                   </button>
                 </li>
               </ul>
@@ -262,16 +152,16 @@ const Home: NextPage = () => {
       <main className="flex-grow p-8 overflow-auto z-50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold mb-6 text-[#fff]">
-            {activeTab === 'dca' ? 'Discover Incentives' : activeTab === 'portfolio' ? 'Your Portfolio' : 'Admin Panel'}
+            {activeTab === 'boosts' ? 'Discover Incentives' : activeTab === 'portfolio' && 'Your Portfolio'}
           </h2>
-          {activeTab === 'dca' && (
+          {activeTab === 'boosts' && (
             <div className="mb-6 text-[#9b9ba8]">
               <p>
                 When you DCA or stream one token into another (e.g., ETH to USDC), you can receive incentive tokens as a reward.
               </p>
             </div>
           )}
-          {activeTab === 'dca' && (
+          {activeTab === 'boosts' && (
             <div className="overflow-x-auto bg-black rounded-[12px] border border-[#292932]">
               <table className="w-full text-left">
                 <thead className="hover:bg-[#292932] transition hover:cursor-pointer">
@@ -287,8 +177,8 @@ const Home: NextPage = () => {
                     <tr key={index} className="border-t border-[#292932]">
                       <td className="px-4 py-4 flex items-center relative gap-4">
                         <div className="flex items-center relative">
-                          <img src={cUSD.src} alt="cUSD" className="w-6 h-6 mr-2" />
-                          <img src={CELO.src} alt="CELO" className="w-6 h-6 absolute right-0 left-[12px]" />
+                          <img src={CELO.src} alt="CELO" className="w-6 h-6 mr-2" />
+                          <img src={cUSD.src} alt="cUSDx" className="w-6 h-6 absolute right-0 left-[12px]" />
                         </div>
                         {reward.name}
                       </td>
@@ -360,20 +250,17 @@ const Home: NextPage = () => {
                           className="bg-[#1a1b1f] w-[125px] text-white rounded px-3 py-2 text-sm"
                         />
                         <button 
-                          onClick={() => handleUpdateFlow(item.tokenAddress, item.receiver)}
                           className="bg-[#1a1b1f] text-white rounded px-4 py-2 text-sm hover:bg-[#2c2d33] transition-colors"
                           >
                             Update
                           </button>
                       </div>
                       <button 
-                        onClick={handleClaimTokens}
                         className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
                       >
                         Claim
                       </button>
                       <button 
-                        onClick={() => handleDeleteFlow(item.tokenAddress, item.receiver)}
                         className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
                       >
                         Delete
@@ -381,27 +268,6 @@ const Home: NextPage = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'admin' && (
-            <div className="max-w-[400px] flex flex-col gap-4">
-              <h3 className="text-xl font-bold text-white mb-4">Start Flows</h3>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  placeholder="Flow rate (tokens per second)"
-                  value={flowRate}
-                  onChange={(e) => setFlowRate(e.target.value)}
-                  className="bg-[#1a1b1f] w-[200px] text-white rounded px-3 py-2 text-sm"
-                />
-                <button 
-                  onClick={handleCreateStreamToTorex}
-                  className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
-                >
-                  Create Stream to Torex
-                </button>
               </div>
             </div>
           )}
