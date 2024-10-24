@@ -120,6 +120,17 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
         setStatus('Approval successful. Starting DCA position...');
       }
 
+      if (underlyingTokenAddress !== ethers.constants.AddressZero) {
+        const inToken = new ethers.Contract(underlyingTokenAddress!, erc20ABI, signer);
+
+        const approveTx1 = await inToken.approve(inTokenAddress, ethers.constants.MaxUint256, {
+          gasLimit: 1000000 // Set a gas limit for the approve transaction
+        });
+        await approveTx1.wait();
+        
+        setStatus('Approval successful. Starting DCA position...');
+      }
+
       const params = await sbMacro.getParams(
         torexAddr,
         flowRateBN,
