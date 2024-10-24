@@ -148,8 +148,8 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-black rounded-lg py-6 px-4 w-96 text-white shadow-[inset_0_0_30px_rgba(255,255,255,0.2)]">
+    <div className="fixed inset-0 bg-[#5A32C7] bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-[#5A32C7] rounded-lg py-6 px-4 w-96 text-white shadow-[inset_0_0_30px_rgba(255,255,255,0.5)]">
         <div onClick={() => {console.log(positionData)}} className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Dollar-Cost-Average</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -158,25 +158,25 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
             </svg>
           </button>
         </div>
-        <div className="flex flex-col gap-2 mb-4 bg-black py-2 px-4 rounded-[8px]">
+        <div className="flex flex-col gap-2 mb-4 bg-[#1A1F3C] py-2 px-4 rounded-[8px]">
           <p className="text-sm text-gray-400">Monthly Rate</p>
-          <div className="flex items-center justify-between bg-black">
+          <div className="flex items-center justify-between bg-[#1A1F3C]">
             <input
               type="number"
               value={flowRate}
               onChange={(e) => {setFlowRate(e.target.value); handleUpgradeAmountChange(e)}}
-              className="bg-black text-2xl font-bold w-1/2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="bg-[#1A1F3C] text-2xl font-bold w-1/2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <div className="flex items-center bg-black">
+            <div className="flex items-center bg-[#1A1F3C]">
               <Image src={usdc.src} alt="USDC" width={24} height={24} />
               <span className="ml-2 min-w-[50px] flex justify-end">USDC</span>
             </div>
           </div>
           <p className="text-sm text-gray-400">${flowRate ? parseFloat(flowRate).toFixed(2) : '0.00'}</p>
         </div>
-        <div className="flex justify-between items-center mb-4 bg-black py-2 px-4 rounded-[8px]">
+        <div className="flex justify-between items-center mb-4 bg-[#1A1F3C] py-2 px-4 rounded-[8px]">
           <span className="text-gray-400">to DCA into</span>
-          <div className="flex items-center bg-black">
+          <div className="flex items-center bg-[#1A1F3C]">
             <Image src={eth.src} alt="ETH" width={24} height={24} />
             <span className="ml-2 min-w-[50px] flex justify-end">ETH</span>
           </div>
@@ -198,15 +198,15 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
             {isConnected ? (
           <button 
             onClick={handleSubmit}
-            className={`w-full bg-[#36be91] text-white rounded-md py-3 font-bold ${
-              sendingStream ? 'opacity-75 cursor-not-allowed animate-pulse' : 'hover:bg-[#2ea17d]'
+            className={`w-full bg-[#7CFFD4] text-white rounded-md py-3 font-bold transition text-[#1A1F3C] ${
+              sendingStream ? 'opacity-75 cursor-not-allowed animate-pulse' : 'hover:bg-opacity-80'
             }`}
             disabled={sendingStream}
           >
             {sendingStream ? 'Starting stream' : 'Start Stream'}
           </button>
         ) : (
-          <button className="w-full bg-[#36be91] text-white rounded-md py-3 font-bold hover:bg-[#2ea17d]">
+          <button className="w-full bg-[#7CFFD4] text-[#1A1F3C] text-white rounded-md py-3 font-bold hover:bg-opacity-80">
             Connect Wallet
           </button>
         )}

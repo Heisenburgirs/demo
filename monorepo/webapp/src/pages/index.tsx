@@ -18,7 +18,7 @@ const dcaRewards = [
     name: 'USDC / ETH',
     tokens: { from: 'USDC', to: 'ETH' },
     monthlyVolume: '21,734.632',
-    dailyRewards: { amount: '15', token: 'FLOW' },
+    dailyRewards: { amount: '15000', token: 'FLOW' },
     apr: '3.15%',
     isLive: true 
   },
@@ -117,7 +117,7 @@ const Home: NextPage = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen h-screen w-screen bg-[#000000] text-white">
+    <div className="flex flex-col min-h-screen h-screen w-screen bg-[#1A1F3C] text-white">
       <Head>
         <title>Super Boring DCA</title>
         <meta
@@ -130,12 +130,14 @@ const Home: NextPage = () => {
       <header className="py-4 sticky top-0 z-10 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-end space-x-6">
-            <h1 className="text-[22px] font-bold">SuperBoost</h1>
+            <h1 className="text-[22px] font-bold text-[#fff] opacity-90">SuperBoost</h1>
             <nav>
               <ul className="flex space-x-4">
                 <li>
                   <button
-                    className={`text-[18px] ${activeTab === 'boosts' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
+                    className={`text-[18px] w-20 transition-colors duration-200 transition ${
+                      activeTab === 'boosts' ? 'text-[#9E8CFF]' : 'text-[#fff]'
+                    }`}
                     onClick={() => setActiveTab('boosts')}
                   >
                     Boosts
@@ -143,7 +145,9 @@ const Home: NextPage = () => {
                 </li>
                 <li>
                   <button
-                    className={`text-[18px] ${activeTab === 'portfolio' ? 'text-[#36be91] font-bold' : 'text-[#4f4f55]'}`}
+                    className={`text-[18px] w-20 transition-colors duration-200 transition ${
+                      activeTab === 'portfolio' ? 'text-[#9E8CFF]' : 'text-[#fff]'
+                    }`}
                     onClick={() => setActiveTab('portfolio')}
                   >
                     Portfolio
@@ -178,7 +182,7 @@ const Home: NextPage = () => {
                   {(() => {
                     if (!connected) {
                       return (
-                        <button onClick={openConnectModal} className="bg-[#1a1b1f] text-white rounded-md px-4 py-[6px] hover:bg-[#2c2d33] border border-[#36be91]">
+                        <button onClick={openConnectModal} className="bg-[#1a1b1f] text-white rounded-md px-4 py-[6px] hover:bg-[#2c2d33] border border-[#00D6E5]">
                           Connect
                         </button>
                       );
@@ -188,7 +192,7 @@ const Home: NextPage = () => {
                       <div className="flex items-center space-x-2">
                         <button 
                           onClick={openChainModal} 
-                          className="text-white rounded-md px-3 py-2 text-sm hover:bg-[#1a1b1f] border border-[#2c2d33] flex items-center justify-center gap-2 transition"
+                          className="text-white rounded-md px-3 py-2 text-sm hover:bg-[#2A2F4C] border border-[#9E8CFF] flex items-center justify-center gap-2 transition"
                         >
                           <div className="flex items-center gap-[2px]">
                             {chain.hasIcon && (
@@ -218,8 +222,9 @@ const Home: NextPage = () => {
 
                         <button 
                           onClick={openAccountModal} 
-                          className="text-white rounded-md px-3 py-2 text-sm hover:bg-[#36be91] border border-[#36be91] flex items-center transition"
+                          className="text-white rounded-md px-3 py-2 text-sm hover:bg-[#9E8CFF] border border-[#9E8CFF] flex items-center transition"
                         >
+                          {account.balanceFormatted && parseFloat(account.balanceFormatted).toFixed(2)}
                           {account.displayName}
                         </button>
                       </div>
@@ -245,20 +250,20 @@ const Home: NextPage = () => {
             </div>
           )}
           {activeTab === 'boosts' && (
-            <div className="overflow-x-auto bg-black rounded-[12px] border border-[#292932]">
+            <div className="overflow-x-auto bg-[#1A1F3C] rounded-[12px] border border-[#fff] border-opacity-10">
               <table className="w-full text-left">
-                <thead className="hover:bg-[#292932] transition hover:cursor-pointer">
-                  <tr className="text-[#9b9ba8] text-[12px] text-[hsl(215,20.2%,65.1%)]">
+                <thead className="hover:bg-[#3A3F5C] transition hover:cursor-pointer">
+                  <tr className="text-[#7CFFD4] text-[12px]">
                     <th className="py-4 px-4">Pool</th>
                     <th className="py-4 px-4">Monthly Volume</th>
-                    <th className="py-4 px-4">Daily Rewards</th>
+                    <th className="py-4 px-4">Reward Pool</th>
                     <th className="py-4 px-4">APR</th>
                     <th className="py-4 px-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dcaRewards.map((reward, index) => (
-                    <tr key={index} className="border-t border-[#292932]">
+                    <tr key={index} className="border-t border-[#fff] border-opacity-10">
                       <td className="px-4 py-4 flex items-center relative gap-4">
                         <div className="flex items-center relative">
                           <img src={usdc.src} alt={reward.tokens.from} className="w-6 h-6 mr-2" />
@@ -270,7 +275,7 @@ const Home: NextPage = () => {
                       <td className="px-4 py-4">{reward.dailyRewards.amount} {reward.dailyRewards.token}</td>
                       <td className="px-4 py-4">{reward.apr}</td>
                       <td className="px-4 py-4">
-                        <button onClick={handleDCAClick} className="bg-[#36be91] text-white rounded px-4 py-1 mr-2 hover:bg-[#2ea17d]">
+                        <button onClick={handleDCAClick} className="bg-[#6C3CE9] text-white rounded px-4 py-1 mr-2 hover:bg-[#5A32C7]">
                           DCA
                         </button>
                       </td>
@@ -281,68 +286,68 @@ const Home: NextPage = () => {
             </div>
           )}
 
-{activeTab === 'portfolio' && (
-      <div className="max-w-[400px] flex flex-col gap-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-white">Positions</h3>
-        </div>
-        {loading && <p>Loading...</p>}
-        {error && <p>Error: {error.message}</p>}
-        {positionData && positionData.pools.length > 0 && (
-          <div className="grid grid-cols-1 gap-4">
-            {positionData.pools.map((pool, poolIndex) => (
-              pool.poolMembers.map((member, memberIndex) => {
-                const latestOutflow = member.account.outflows
-                  .filter(outflow => outflow.currentFlowRate !== "0")
-                  .sort((a, b) => parseInt(b.createdAtTimestamp) - parseInt(a.createdAtTimestamp))[0];
+          {activeTab === 'portfolio' && (
+            <div className="max-w-[400px] flex flex-col gap-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">Positions</h3>
+              </div>
+              {loading && <p>Loading...</p>}
+              {error && <p>Error: {error.message}</p>}
+              {positionData && positionData.pools.length > 0 && (
+                <div className="grid grid-cols-1 gap-4">
+                  {positionData.pools.map((pool, poolIndex) => (
+                    pool.poolMembers.map((member, memberIndex) => {
+                      const latestOutflow = member.account.outflows
+                        .filter(outflow => outflow.currentFlowRate !== "0")
+                        .sort((a, b) => parseInt(b.createdAtTimestamp) - parseInt(a.createdAtTimestamp))[0];
 
-                if (!latestOutflow) return null; // Skip if no active outflow
+                      if (!latestOutflow) return null; // Skip if no active outflow
 
-                const monthlyFlowRate = calculateMonthlyFlowRate(latestOutflow.currentFlowRate);
-                const totalStreamed = calculateTotalStreamed(
-                  latestOutflow.currentFlowRate,
-                  latestOutflow.createdAtTimestamp
-                );
+                      const monthlyFlowRate = calculateMonthlyFlowRate(latestOutflow.currentFlowRate);
+                      const totalStreamed = calculateTotalStreamed(
+                        latestOutflow.currentFlowRate,
+                        latestOutflow.createdAtTimestamp
+                      );
 
-                return (
-                  <div key={`${poolIndex}-${memberIndex}`} className="bg-[#000] rounded-lg p-4 border border-[#292932]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-white">USDC {">"} ETH</h3>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 mb-4">
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Monthly Flow Rate</p>
-                        <p className="text-white font-bold">{parseFloat(monthlyFlowRate).toFixed(2)} USDC / month</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Total Streamed</p>
-                        <p className="text-white font-bold">{parseFloat(totalStreamed).toFixed(6)} USDC</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Total Received</p>
-                        <p className="text-white font-bold">{ethers.utils.formatEther(member.account.poolMemberships[0].pool.perUnitSettledValue)} ETH</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between">
-                      <button
-                        ref={setDeleteButtonRef(pool.id)}
-                        onClick={() => handleDelete(pool.id)}
-                        className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            ))}
-          </div>
-        )}
-        {(!positionData || positionData.pools.length === 0 || positionData.pools.every(pool => pool.poolMembers.length === 0)) && (
-          <p>No positions found.</p>
-        )}
-      </div>
-    )}
+                      return (
+                        <div key={`${poolIndex}-${memberIndex}`} className="bg-[#1A1F3C] rounded-lg p-4 border border-[#fff] border-opacity-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-white">USDC {">"} ETH</h3>
+                          </div>
+                          <div className="grid grid-cols-1 gap-4 mb-4">
+                            <div>
+                              <p className="text-[#9b9ba8] text-sm mb-1">Monthly Flow Rate</p>
+                              <p className="text-white font-bold">{parseFloat(monthlyFlowRate).toFixed(2)} USDC / month</p>
+                            </div>
+                            <div>
+                              <p className="text-[#9b9ba8] text-sm mb-1">Total Streamed</p>
+                              <p className="text-white font-bold">{parseFloat(totalStreamed).toFixed(6)} USDC</p>
+                            </div>
+                            <div>
+                              <p className="text-[#9b9ba8] text-sm mb-1">Total Received</p>
+                              <p className="text-white font-bold">{ethers.utils.formatEther(member.account.poolMemberships[0].pool.perUnitSettledValue)} ETH</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between">
+                            <button
+                              ref={setDeleteButtonRef(pool.id)}
+                              onClick={() => handleDelete(pool.id)}
+                              className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ))}
+                </div>
+              )}
+              {(!positionData || positionData.pools.length === 0 || positionData.pools.every(pool => pool.poolMembers.length === 0)) && (
+                <p>No positions found.</p>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -350,23 +355,12 @@ const Home: NextPage = () => {
         <DCAOverlay onClose={() => setIsDCAOverlayOpen(false)} />
       )}
 
-      <footer className="bg-[#000] py-4 z-50 border-t border-[#292932]">
+      <footer className="bg-[#6C3C9] py-4 z-50 border-t border-[#292932]">
         <div className="container mx-auto text-center text-[#4f4f55]">
           <span className="opacity-50 font-bold">Powered by Superfluid</span>
         </div>
       </footer>
 
-      <div className="w-screen h-screen top-0 z-10 opacity-50 overflow-hidden fixed">
-        <div 
-          id="dynamic-background" 
-          className="absolute w-full h-full bg-cover bg-[center_-30px]" 
-          style={{
-            scale: '1.15', 
-            backgroundImage: `url(${background.src})`
-          }}
-        ></div>
-        
-      </div>
 
       <div className='w-screen h-screen top-0 z-30 opacity-90 fixed'>
         <div 
