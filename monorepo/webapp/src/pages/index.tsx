@@ -2,11 +2,10 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useRef, useState, useCallback } from 'react';
-import background from "@/public/background.2bf00877.svg"
-import noise from "@/public/noise.0eeb5824.png"
+import noise from "../../public/noise.0eeb5824.png"
 import { useAccount} from 'wagmi';
-import usdc from "@/public/usdc.png"
-import eth from "@/public/eth.webp"
+import usdc from "../../public/usdc.png"
+import eth from "../../public/eth.webp"
 import DCAOverlay from "../components/DCAOverlay";
 import { ethers } from "ethers";
 import { usePosition } from "../components/PositionContext";
