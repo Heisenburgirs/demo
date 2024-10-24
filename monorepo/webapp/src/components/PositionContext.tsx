@@ -43,6 +43,7 @@ interface PositionContextValue {
   positionData: PositionData | null;
   loading: boolean;
   error: any;
+  refetchWithDelay: (delayMs: number) => void;
 }
 
 // Create the context
@@ -95,6 +96,12 @@ export const PositionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     skip: !address, // Skip the query if there's no address
   });
 
+  const refetchWithDelay = (delayMs: number) => {
+    setTimeout(() => {
+      refetch({ account: address?.toLowerCase(), poolAdmin: poolAdmin });
+    }, delayMs);
+  };
+
   useEffect(() => {
     console.log("Query variables:", { poolAdmin, account: address?.toLowerCase() });
   }, [poolAdmin, address]);
@@ -117,6 +124,7 @@ export const PositionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     positionData: data || null,
     loading,
     error,
+    refetchWithDelay
   };
 
   return <PositionContext.Provider value={value}>{children}</PositionContext.Provider>;

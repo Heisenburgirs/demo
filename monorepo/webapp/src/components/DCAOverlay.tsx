@@ -14,8 +14,9 @@ interface DCAOverlayProps {
 
 const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
   const [sendingStream, setSendingStream] = useState(false);
+  const [txSuccessful, setTxSuccessful] = useState(false);
 
-  const { positionData } = usePosition();
+  const { positionData, refetchWithDelay } = usePosition();
   const { address, isConnected } = useAccount();
   const { ethPrice } = useEth();
   const tokenContext = useTokenContext();
@@ -54,7 +55,7 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
     'function getParams(address torexAddr, int96 flowRate, address distributor, address referrer, uint256 upgradeAmount) public pure returns (bytes memory)',
   ];
 
-  const erc20xABI = [
+  const erc20ABI = [
     'function approve(address spender, uint256 amount) external returns (bool)',
   ];
 
@@ -108,24 +109,16 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
       console.log('SB_MACRO_ADDRESS:', SB_MACRO_ADDRESS);
       console.log('MACRO_FORWARDER_ADDRESS:', MACRO_FORWARDER_ADDRESS);
 
-      // Check allowance
-      //if (allowance !== null && upgradeAmountBN.gt(ethers.utils.parseEther(allowance))) {
-        if (underlyingTokenAddress !== ethers.constants.AddressZero) {
-          //const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer)
-          const inToken = new ethers.Contract(underlyingTokenAddress!, erc20xABI, signer);
+      if (underlyingTokenAddress !== ethers.constants.AddressZero) {
+        const erc20 = new ethers.Contract(underlyingTokenAddress!, erc20ABI, signer)
 
-          /*const approveTx2 = await erc20.approve(MACRO_FORWARDER_ADDRESS, ethers.constants.MaxUint256, {
-            gasLimit: 1000000 // Set a gas limit for the approve transaction
-          });
-          await approveTx2.wait();*/
-          const approveTx2 = await inToken.approve(inTokenAddress, ethers.constants.MaxUint256, {
-            gasLimit: 1000000 // Set a gas limit for the approve transaction
-          });
-          await approveTx2.wait();
-          
-          setStatus('Approval successful. Starting DCA position...');
-        }
-      //}
+        const approveTx2 = await erc20.approve(MACRO_FORWARDER_ADDRESS, ethers.constants.MaxUint256, {
+          gasLimit: 1000000 // Set a gas limit for the approve transaction
+        });
+        await approveTx2.wait();
+        
+        setStatus('Approval successful. Starting DCA position...');
+      }
 
       const params = await sbMacro.getParams(
         torexAddr,
@@ -141,12 +134,17 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
       await tx.wait();
 
       setStatus('DCA position started successfully!');
+      setTxSuccessful(true);
+      
+      // Trigger a refetch after 3 seconds
+      refetchWithDelay(3000);
     } catch (err) {
       console.error(err);
       setStatus(`Error: ${(err as Error).message}`);
+      setTxSuccessful(false);
     } finally {
-    setSendingStream(false);
-  }
+      setSendingStream(false);
+    }
   };
 
   return (
@@ -183,35 +181,21 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
             <span className="ml-2 min-w-[50px] flex justify-end">ETH</span>
           </div>
         </div>
-        {/*<div className="bg-[#000] text-[0.75rem] rounded p-4 mb-4 rounded-[8px]">
-          <div className="flex justify-between items-center mb-2">
-            <span>1 ETH = {ethPrice} USDC</span>
-          </div>
-          <div className="flex justify-between text-gray-400">
-            <span>Minimum Flowrate</span>
-            <span>0.002628 USDCX</span>
-          </div>
-          <div className="flex flex-col gap-2 mt-4 text-gray-400">
-            <div className="flex justify-between">
-              <span>Fee ℹ</span>
-              <span>0.500 cUSDC / month</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Avg. Payout ℹ</span>
-              <span>~52 minutes</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Reward ℹ</span>
-              <span>273.8463 BORING / month</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Stream ends ℹ</span>
-              <span>10th Oct, 2024 15:10</span>
-            </div>
-          </div>
-        </div>*/}
 
-        {isConnected ? (
+        {txSuccessful ? (
+          <div className="text-center">
+            <p className="text-lg font-bold text-green-500 mb-4">Transaction Successful!</p>
+            <p className="mb-4">Your DCA position has been started successfully.</p>
+            <button 
+              onClick={onClose}
+              className="w-full bg-[#36be91] text-white rounded-md py-3 font-bold hover:bg-[#2ea17d]"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <div>
+            {isConnected ? (
           <button 
             onClick={handleSubmit}
             className={`w-full bg-[#36be91] text-white rounded-md py-3 font-bold ${
@@ -229,6 +213,8 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
         {status && (
           <div className="mt-4 p-2 bg-gray-800 rounded-md">
             <p className="text-sm">{status}</p>
+          </div>
+            )}
           </div>
         )}
       </div>
