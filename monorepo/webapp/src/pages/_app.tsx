@@ -8,6 +8,13 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 
 import { config } from '../wagmi';
 
+import { TokenProvider } from '../components/TokenContext';
+import { EthProvider } from '../components/EthContext';
+import { PositionProvider } from '../components/PositionContext';
+
+import { ApolloProvider } from '@apollo/client';
+import clientApollo from '../apollo';
+
 const client = new QueryClient();
 
 function MyApp({ Component, pageProps }: AppProps) {
@@ -15,7 +22,15 @@ function MyApp({ Component, pageProps }: AppProps) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={client}>
         <RainbowKitProvider>
-          <Component {...pageProps} />
+          <ApolloProvider client={clientApollo}>
+            <TokenProvider>
+              <EthProvider>
+                <PositionProvider>
+                  <Component {...pageProps} />
+                </PositionProvider>
+              </EthProvider>
+            </TokenProvider>
+          </ApolloProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

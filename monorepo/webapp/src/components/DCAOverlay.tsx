@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import cUSD from "../public/cUSD.png"
-import CELO from "../public/CELO.png"
+import usdc from "../public/usdc.png"
+import eth from "../public/eth.webp"
 import { useAccount } from 'wagmi';
 import { ethers } from "ethers"
+import { useEth } from './EthContext';
+import { useTokenContext } from './TokenContext';
+import { usePosition } from './PositionContext';
 
 interface DCAOverlayProps {
   onClose: () => void;
@@ -12,7 +15,19 @@ interface DCAOverlayProps {
 const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
   const [sendingStream, setSendingStream] = useState(false);
 
+  const { positionData } = usePosition();
   const { address, isConnected } = useAccount();
+  const { ethPrice } = useEth();
+  const tokenContext = useTokenContext();
+
+  // Ensure tokenContext is not null before destructuring
+  const { inTokenAddress, underlyingTokenAddress, tokenBalance, tokenAllowance } = tokenContext || {
+    inTokenAddress: null,
+    underlyingTokenAddress: null,
+    tokenBalance: '',
+    tokenAllowance: ''
+  };
+
   // States
   const [torexAddr, setTorexAddr] = useState('0x269f9ef6868f70fb20ddf7cfdf69fe1dbfd307de');
   const [flowRate, setFlowRate] = useState('');
@@ -24,9 +39,6 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
   const [maxBalance, setMaxBalance] = useState<string>('');
   const [balance, setBalance] = useState<string>('');
   const [allowance, setAllowance] = useState<string>('');
-  const [isTorexValid, setIsTorexValid] = useState(false);
-  const [inTokenAddress, setInTokenAddress] = useState('');
-  const [underlyingTokenAddress, setUnderlyingTokenAddress] = useState<string>('');
 
   // Addresses
   const SB_MACRO_ADDRESS  = "0xe581e09a9c2a9188c3e6f0fab5a0b3ec88ca39ae";
@@ -42,80 +54,9 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
     'function getParams(address torexAddr, int96 flowRate, address distributor, address referrer, uint256 upgradeAmount) public pure returns (bytes memory)',
   ];
 
-  const torexABI = [
-    'function getPairedTokens() external view returns (address inToken, address outToken)',
-  ];
-
-  const superTokenABI = [
-    'function getUnderlyingToken() external view returns (address)',
-  ];
-
-  const erc20ABI = [
-    'function balanceOf(address account) external view returns (uint256)',
-    'function allowance(address owner, address spender) external view returns (uint256)',
+  const erc20xABI = [
     'function approve(address spender, uint256 amount) external returns (bool)',
-    'function decimals() external view returns (uint8)',
   ];
-
-  useEffect(() => {
-    if (isConnected && address) {
-      validateTorexAndFetchTokenInfo();
-    }
-  }, [isConnected, address]);
-
-  const validateTorexAndFetchTokenInfo = async () => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-
-    try {
-      const torex = new ethers.Contract(torexAddr, torexABI, provider);
-      const [inTokenAddr, outTokenAddr] = await torex.getPairedTokens();
-      setInTokenAddress(inTokenAddr);
-      console.log('inTokenAddr', inTokenAddr);
-      console.log('outTokenAddr', outTokenAddr);
-
-      const superToken = new ethers.Contract(inTokenAddr, superTokenABI, provider);
-      const underlyingAddr = await superToken.getUnderlyingToken();
-      setUnderlyingTokenAddress(underlyingAddr);
-      console.log('underlyingAddr', underlyingAddr);
-
-      setIsTorexValid(true);
-      await fetchBalanceAndAllowance(underlyingAddr);
-      console.log('underlyingAddr', underlyingAddr);
-    } catch (error) {
-      console.error("Error validating Torex address:", error);
-      setIsTorexValid(false);
-      setStatus("Invalid Torex address");
-    }
-  };
-
-  const fetchBalanceAndAllowance = async (tokenAddress: string) => {
-    const provider = new ethers.providers.JsonRpcProvider('https://base.llamarpc.com');
-    try {
-      if (tokenAddress === ethers.constants.AddressZero) {
-        // Native token (ETH)
-        const balance = await provider.getBalance(address || '');
-        setMaxBalance(ethers.utils.formatEther(balance));
-        setAllowance('');
-      } else {
-        // ERC20 token
-        const erc20 = new ethers.Contract(tokenAddress, erc20ABI, provider);
-        const balance = await erc20.balanceOf(address);
-        const decimals = await erc20.decimals();
-        const formattedBalance = ethers.utils.formatUnits(balance, decimals);
-        console.log("balance", formattedBalance);
-
-        const allowance = await erc20.allowance(address, SB_MACRO_ADDRESS);
-        const formattedAllowance = ethers.utils.formatUnits(allowance, decimals);
-        console.log("allowance for SB_MACRO_ADDRESS", formattedAllowance);
-        
-        setMaxBalance(formattedBalance);
-        setBalance(balance);
-        setAllowance(formattedAllowance);
-      }
-    } catch (error) {
-      console.error("Error fetching balance and allowance:", error);
-    }
-  };
 
   const handleUpgradeAmountChange = (e: any) => {
     const value = e.target.value;
@@ -143,13 +84,16 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
       const macroForwarder = new ethers.Contract(MACRO_FORWARDER_ADDRESS, macroForwarderABI, signer);
       const sbMacro = new ethers.Contract(SB_MACRO_ADDRESS, sbMacroABI, provider);
 
-      // Handle very small flow rate values
-      const flowRateBN = flowRate && parseFloat(flowRate) > 0
-      ? ethers.utils.parseEther(flowRate)
-      : ethers.BigNumber.from(0);
+      // Convert monthly flow rate to wei per second
+      const monthlyFlowRate = parseFloat(flowRate);
+      const secondsInMonth = 30 * 24 * 60 * 60; // Approximate seconds in a month
+      const flowRatePerSecond = monthlyFlowRate / secondsInMonth;
 
-    // Handle very small upgrade amount values
-    const upgradeAmountBN = upgradeAmount && parseFloat(upgradeAmount) > 0
+      // Convert to wei per second
+      const flowRateBN = ethers.utils.parseEther(flowRatePerSecond.toFixed(18));
+
+      // Handle very small upgrade amount values
+      const upgradeAmountBN = upgradeAmount && parseFloat(upgradeAmount) > 0
       ? ethers.utils.parseEther(upgradeAmount)
       : ethers.BigNumber.from(0);
 
@@ -166,18 +110,21 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
 
       // Check allowance
       //if (allowance !== null && upgradeAmountBN.gt(ethers.utils.parseEther(allowance))) {
-        /*if (underlyingTokenAddress !== ethers.constants.AddressZero) {
-          const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer);
-          const approveTx = await erc20.approve(SB_MACRO_ADDRESS, ethers.constants.MaxUint256, {
+        if (underlyingTokenAddress !== ethers.constants.AddressZero) {
+          //const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer)
+          const inToken = new ethers.Contract(underlyingTokenAddress!, erc20xABI, signer);
+
+          /*const approveTx2 = await erc20.approve(MACRO_FORWARDER_ADDRESS, ethers.constants.MaxUint256, {
             gasLimit: 1000000 // Set a gas limit for the approve transaction
           });
-          await approveTx.wait();
-          const approveTx2 = await erc20.approve(MACRO_FORWARDER_ADDRESS, ethers.constants.MaxUint256, {
+          await approveTx2.wait();*/
+          const approveTx2 = await inToken.approve(inTokenAddress, ethers.constants.MaxUint256, {
             gasLimit: 1000000 // Set a gas limit for the approve transaction
           });
           await approveTx2.wait();
+          
           setStatus('Approval successful. Starting DCA position...');
-        }*/
+        }
       //}
 
       const params = await sbMacro.getParams(
@@ -185,12 +132,12 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
         flowRateBN,
         ethers.constants.AddressZero, // No distributor
         ethers.constants.AddressZero, // No referrer
-        balance
+        ethers.constants.MaxUint256
       );
       console.log('Generated params:', params);
 
       console.log('Submitting runMacro transaction...');
-      const tx = await macroForwarder.runMacro(SB_MACRO_ADDRESS, params, { gasLimit: 210000 });
+      const tx = await macroForwarder.runMacro(SB_MACRO_ADDRESS, params);
       await tx.wait();
 
       setStatus('DCA position started successfully!');
@@ -205,41 +152,40 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-black rounded-lg py-6 px-4 w-96 text-white shadow-[inset_0_0_30px_rgba(255,255,255,0.2)]">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Trade</h2>
+        <div onClick={() => {console.log(positionData)}} className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Dollar-Cost-Average</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <p className="text-sm text-gray-400 mb-4">Initiate Automatic DCAing</p>
-        <div className="mb-4 bg-black py-2 px-4 rounded-[8px]">
-          <p className="text-sm text-gray-400">I'm allocating a monthly</p>
+        <div className="flex flex-col gap-2 mb-4 bg-black py-2 px-4 rounded-[8px]">
+          <p className="text-sm text-gray-400">Monthly Rate</p>
           <div className="flex items-center justify-between bg-black">
             <input
               type="number"
               value={flowRate}
               onChange={(e) => {setFlowRate(e.target.value); handleUpgradeAmountChange(e)}}
-              className="bg-black text-3xl font-bold w-1/2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="bg-black text-2xl font-bold w-1/2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <div className="flex items-center bg-black">
-              <Image src={cUSD.src} alt="cUSDx" width={24} height={24} />
-              <span className="ml-2">cUSDx</span>
+              <Image src={usdc.src} alt="USDC" width={24} height={24} />
+              <span className="ml-2 min-w-[50px] flex justify-end">USDC</span>
             </div>
           </div>
-          <p className="text-sm text-gray-400">${parseFloat(flowRate).toFixed(2)}</p>
+          <p className="text-sm text-gray-400">${flowRate ? parseFloat(flowRate).toFixed(2) : '0.00'}</p>
         </div>
         <div className="flex justify-between items-center mb-4 bg-black py-2 px-4 rounded-[8px]">
           <span className="text-gray-400">to DCA into</span>
           <div className="flex items-center bg-black">
-            <Image src={CELO.src} alt="CELOx" width={24} height={24} />
-            <span className="ml-2">CELOx</span>
+            <Image src={eth.src} alt="ETH" width={24} height={24} />
+            <span className="ml-2 min-w-[50px] flex justify-end">ETH</span>
           </div>
         </div>
-        <div className="bg-[#000] text-[0.75rem] rounded p-4 mb-4 rounded-[8px]">
+        {/*<div className="bg-[#000] text-[0.75rem] rounded p-4 mb-4 rounded-[8px]">
           <div className="flex justify-between items-center mb-2">
-            <span>1 cUSDC = 0.000417521415 CELO</span>
+            <span>1 ETH = {ethPrice} USDC</span>
           </div>
           <div className="flex justify-between text-gray-400">
             <span>Minimum Flowrate</span>
@@ -263,7 +209,8 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
               <span>10th Oct, 2024 15:10</span>
             </div>
           </div>
-        </div>
+        </div>*/}
+
         {isConnected ? (
           <button 
             onClick={handleSubmit}

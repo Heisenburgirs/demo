@@ -1,24 +1,31 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import { useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import background from "../public/background.2bf00877.svg"
 import noise from "../public/noise.0eeb5824.png"
-import { useAccount } from 'wagmi';
-import cUSD from "../public/cUSD.png"
-import CELO from "../public/CELO.png"
+import { useAccount} from 'wagmi';
+import usdc from "../public/usdc.png"
+import eth from "../public/eth.webp"
 import DCAOverlay from "../components/DCAOverlay";
 import { ethers } from "ethers";
-import cfaABI from "../components/cfa.abi.json"
-import sbIncentivesAppABI from "../components/abi.json"
+import { usePosition } from "../components/PositionContext";
+import { useTokenContext } from '../components/TokenContext';
 
 // Mock data for DCA rewards and portfolio
 const dcaRewards = [
-  { name: 'CELOx / cUSDx', monthlyVolume: '21,734.632 cUSDx', monthlyRewards: '10 $FLOW', isLive: true },
+  { 
+    name: 'USDC / ETH',
+    tokens: { from: 'USDC', to: 'ETH' },
+    monthlyVolume: '21,734.632',
+    dailyRewards: { amount: '15', token: 'FLOW' },
+    apr: '3.15%',
+    isLive: true 
+  },
 ];
 
-const portfolio = [
-  { name: 'ETH/USDC Pool', flowRate: '1 $FLOW/day', balance: '10 ETH', tokenAddress: '0x3acb9a08697b6db4cd977e8ab42b6f24722e6d6e', receiver: '0x2436029135AdeDcf55F346Da15e525B680b64545' }
+const cfaABI = [
+  'function deleteFlow(address token, address sender, address receiver, bytes userData) external returns (bool)',
 ];
 
 const Home: NextPage = () => {
@@ -27,10 +34,86 @@ const Home: NextPage = () => {
   const [isDCAOverlayOpen, setIsDCAOverlayOpen] = useState(false);
   const [updateAmount, setUpdateAmount] = useState('');
 
+  const [cfa, setCfa] = useState('0x19ba78B9cDB05A877718841c574325fdB53601bb');
+
   const { address } = useAccount();
+  const { positionData, loading, error } = usePosition();
+  
+  const tokenContext = useTokenContext();
+
+  // Ensure tokenContext is not null before destructuring
+  const { inTokenAddress, underlyingTokenAddress, tokenBalance, tokenAllowance } = tokenContext || {
+    inTokenAddress: null,
+    underlyingTokenAddress: null,
+    tokenBalance: '',
+    tokenAllowance: ''
+  };
+
+  const deleteButtonRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const setDeleteButtonRef = useCallback((poolId: string) => (el: HTMLButtonElement | null) => {
+    deleteButtonRef.current[poolId] = el;
+  }, []);
+
+  const calculateMonthlyFlowRate = (flowRate: string) => {
+    const flowRateBN = ethers.BigNumber.from(flowRate);
+    const secondsInMonth = 30 * 24 * 60 * 60;
+    const monthlyFlowRateWei = flowRateBN.mul(secondsInMonth);
+    return parseFloat(ethers.utils.formatUnits(monthlyFlowRateWei, 18)).toFixed(4); // Assuming 18 decimals for the flow rate
+  };
+
+  const calculateTotalStreamed = (flowRate: string, createdTimestamp: string) => {
+    const flowRateBN = ethers.BigNumber.from(flowRate);
+    const createdTime = parseInt(createdTimestamp);
+    const currentTime = Math.floor(Date.now() / 1000);
+    const secondsElapsed = currentTime - createdTime;
+    const totalStreamedWei = flowRateBN.mul(secondsElapsed);
+    return parseFloat(ethers.utils.formatUnits(totalStreamedWei, 18)).toFixed(9); // Assuming 18 decimals for the flow rate
+  };
 
   const handleDCAClick = () => {
     setIsDCAOverlayOpen(true);
+  };
+
+  const handleDelete = async (poolId: string) => {
+    if (!window.ethereum) {
+      console.error("Ethereum provider not found");
+      return;
+    }
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const cfaContract = new ethers.Contract(cfa, cfaABI, signer);
+
+    const poolAddress = poolId; // Assuming poolId is the pool address
+
+    try {
+      const tx = await cfaContract.deleteFlow(
+        inTokenAddress,
+        address,
+        poolAddress,
+        '0x',
+        { gasLimit: 300000 }
+      );
+
+      // Disable the button and show loading state
+      if (deleteButtonRef.current[poolId]) {
+        deleteButtonRef.current[poolId]!.disabled = true;
+        deleteButtonRef.current[poolId]!.textContent = 'Deleting...';
+      }
+
+      await tx.wait();
+      console.log("Flow deleted successfully");
+      // You might want to add some UI feedback here, like a success message
+    } catch (error) {
+      console.error("Error deleting flow:", error);
+      // You might want to add some UI feedback here, like an error message
+    } finally {
+      // Re-enable the button and restore original text
+      if (deleteButtonRef.current[poolId]) {
+        deleteButtonRef.current[poolId]!.disabled = false;
+        deleteButtonRef.current[poolId]!.textContent = 'Delete';
+      }
+    }
   };
 
   return (
@@ -166,9 +249,10 @@ const Home: NextPage = () => {
               <table className="w-full text-left">
                 <thead className="hover:bg-[#292932] transition hover:cursor-pointer">
                   <tr className="text-[#9b9ba8] text-[12px] text-[hsl(215,20.2%,65.1%)]">
-                    <th className="py-4 px-4">Markets</th>
-                    <th className="py-4 px-4">Monthly DCA Volume</th>
-                    <th className="py-4 px-4">Monthly Rewards</th>
+                    <th className="py-4 px-4">Pool</th>
+                    <th className="py-4 px-4">Monthly Volume</th>
+                    <th className="py-4 px-4">Daily Rewards</th>
+                    <th className="py-4 px-4">APR</th>
                     <th className="py-4 px-4">Actions</th>
                   </tr>
                 </thead>
@@ -177,13 +261,14 @@ const Home: NextPage = () => {
                     <tr key={index} className="border-t border-[#292932]">
                       <td className="px-4 py-4 flex items-center relative gap-4">
                         <div className="flex items-center relative">
-                          <img src={CELO.src} alt="CELO" className="w-6 h-6 mr-2" />
-                          <img src={cUSD.src} alt="cUSDx" className="w-6 h-6 absolute right-0 left-[12px]" />
+                          <img src={usdc.src} alt={reward.tokens.from} className="w-6 h-6 mr-2" />
+                          <img src={eth.src} alt={reward.tokens.to} className="w-6 h-6 absolute right-0 left-[12px]" />
                         </div>
-                        {reward.name}
+                        <span className="ml-8">{reward.name}</span>
                       </td>
-                      <td className="px-4 py-4">{reward.monthlyVolume}</td>
-                      <td className="px-4 py-4">{reward.monthlyRewards}</td>
+                      <td className="px-4 py-4">{reward.monthlyVolume} {reward.tokens.to}</td>
+                      <td className="px-4 py-4">{reward.dailyRewards.amount} {reward.dailyRewards.token}</td>
+                      <td className="px-4 py-4">{reward.apr}</td>
                       <td className="px-4 py-4">
                         <button onClick={handleDCAClick} className="bg-[#36be91] text-white rounded px-4 py-1 mr-2 hover:bg-[#2ea17d]">
                           DCA
@@ -199,76 +284,73 @@ const Home: NextPage = () => {
           {activeTab === 'portfolio' && (
             <div className="max-w-[400px] flex flex-col gap-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Positions (0.0)</h3>
-                <button className="text-[#9b9ba8] text-sm flex items-center">
-                  <span>Filters</span>
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                <h3 className="text-xl font-bold text-white">Positions</h3>
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="bg-[#000] rounded-lg p-8 border border-[#292932] flex flex-col items-center justify-center text-center cursor-pointer hover:bg-[#1a1b1f] transition-colors">
-                  <div className="w-16 h-16 bg-[#1a1b1f] rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  <h4 className="text-xl font-bold text-white mb-2">Add new Position</h4>
-                  <p className="text-[#9b9ba8] text-sm">Start a new position with a new token</p>
-                </div>
-                {portfolio.map((item, index) => (
-                  <div key={index} className="bg-[#000] rounded-lg p-4 border border-[#292932]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-white">{item.name}</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Allocation</p>
-                        <p className="text-white font-bold">290 USDCx / month</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Sent</p>
-                        <p className="text-white font-bold">0.216811 USDCx</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Received</p>
-                        <p className="text-white font-bold">0.00 ETHx</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9b9ba8] text-sm mb-1">Avg. price</p>
-                        <p className="text-white font-bold">0 USDCx</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          placeholder="New monthly amount"
-                          value={updateAmount}
-                          onChange={(e) => setUpdateAmount(e.target.value)}
-                          className="bg-[#1a1b1f] w-[125px] text-white rounded px-3 py-2 text-sm"
-                        />
-                        <button 
-                          className="bg-[#1a1b1f] text-white rounded px-4 py-2 text-sm hover:bg-[#2c2d33] transition-colors"
+              {loading && <p>Loading...</p>}
+              {error && <p>Error: {error.message}</p>}
+              {positionData && positionData.pools.length > 0 && positionData.pools[0].poolMembers.length > 0 && (
+                <div className="grid grid-cols-1 gap-4">
+                  {positionData.pools[0].poolMembers.map((member, index) => {
+                    const monthlyFlowRate = calculateMonthlyFlowRate(member.account.outflows[0].currentFlowRate);
+                    const totalStreamed = calculateTotalStreamed(
+                      member.account.outflows[0].currentFlowRate,
+                      member.account.outflows[0].createdAtTimestamp
+                    );
+                    return (
+                      <div key={index} className="bg-[#000] rounded-lg p-4 border border-[#292932]">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-white">USDC {">"} ETH</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 mb-4">
+                          <div>
+                            <p className="text-[#9b9ba8] text-sm mb-1">Monthly Flow Rate</p>
+                            <p className="text-white font-bold">{parseFloat(monthlyFlowRate).toFixed(2)} USDC / month</p>
+                          </div>
+                          <div>
+                            <p className="text-[#9b9ba8] text-sm mb-1">Total Streamed</p>
+                            <p className="text-white font-bold">{parseFloat(totalStreamed).toFixed(6)} USDC</p>
+                          </div>
+                          <div>
+                            <p className="text-[#9b9ba8] text-sm mb-1">Total Received</p>
+                            <p className="text-white font-bold">{ethers.utils.formatEther(member.account.poolMemberships[0].pool.perUnitSettledValue)} ETH</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          {/*<div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              placeholder="New monthly amount"
+                              value={updateAmount}
+                              onChange={(e) => setUpdateAmount(e.target.value)}
+                              className="bg-[#1a1b1f] w-[125px] text-white rounded px-3 py-2 text-sm"
+                            />
+                            <button 
+                              className="bg-[#1a1b1f] text-white rounded px-4 py-2 text-sm hover:bg-[#2c2d33] transition-colors"
+                            >
+                              Update
+                            </button>
+                          </div>
+                          <button 
+                            className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
                           >
-                            Update
+                            Claim
+                          </button>*/}
+                          <button
+                            ref={setDeleteButtonRef(positionData.pools[0].id)}
+                            onClick={() => handleDelete(positionData.pools[0].id)}
+                            className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
+                          >
+                            Delete
                           </button>
+                        </div>
                       </div>
-                      <button 
-                        className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
-                      >
-                        Claim
-                      </button>
-                      <button 
-                        className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+              {(!positionData || positionData.pools.length === 0 || positionData.pools[0].poolMembers.length === 0) && (
+                <p>No positions found.</p>
+              )}
             </div>
           )}
         </div>
