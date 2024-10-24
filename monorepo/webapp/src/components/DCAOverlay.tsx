@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import usdc from "../public/usdc.png"
-import eth from "../public/eth.webp"
+import usdc from "@/public/usdc.png"
+import eth from "@/public/eth.webp"
 import { useAccount } from 'wagmi';
 import { ethers } from "ethers"
 import { useEth } from './EthContext';
