@@ -131,7 +131,7 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
 
       console.log('Submitting runMacro transaction...');
       const tx = await macroForwarder.runMacro(SB_MACRO_ADDRESS, params, {
-        gasLimit: 1500000 // Set a custom gas limit for the runMacro transaction
+        gasLimit: 3000000 // Set a custom gas limit for the runMacro transaction
       });
       await tx.wait();
 
