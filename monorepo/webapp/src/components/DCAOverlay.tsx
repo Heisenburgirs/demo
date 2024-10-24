@@ -109,7 +109,7 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
       console.log('SB_MACRO_ADDRESS:', SB_MACRO_ADDRESS);
       console.log('MACRO_FORWARDER_ADDRESS:', MACRO_FORWARDER_ADDRESS);
 
-      if (underlyingTokenAddress !== ethers.constants.AddressZero) {
+      /*if (underlyingTokenAddress !== ethers.constants.AddressZero) {
         const erc20 = new ethers.Contract(underlyingTokenAddress!, erc20ABI, signer)
 
         const approveTx2 = await erc20.approve(MACRO_FORWARDER_ADDRESS, ethers.constants.MaxUint256, {
@@ -118,7 +118,7 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
         await approveTx2.wait();
         
         setStatus('Approval successful. Starting DCA position...');
-      }
+      }*/
 
       if (underlyingTokenAddress !== ethers.constants.AddressZero) {
         const inToken = new ethers.Contract(underlyingTokenAddress!, erc20ABI, signer);
