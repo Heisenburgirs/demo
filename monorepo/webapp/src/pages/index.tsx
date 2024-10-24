@@ -281,78 +281,68 @@ const Home: NextPage = () => {
             </div>
           )}
 
-          {activeTab === 'portfolio' && (
-            <div className="max-w-[400px] flex flex-col gap-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Positions</h3>
-              </div>
-              {loading && <p>Loading...</p>}
-              {error && <p>Error: {error.message}</p>}
-              {positionData && positionData.pools.length > 0 && positionData.pools[0].poolMembers.length > 0 && (
-                <div className="grid grid-cols-1 gap-4">
-                  {positionData.pools[0].poolMembers.map((member, index) => {
-                    const monthlyFlowRate = calculateMonthlyFlowRate(member.account.outflows[0].currentFlowRate);
-                    const totalStreamed = calculateTotalStreamed(
-                      member.account.outflows[0].currentFlowRate,
-                      member.account.outflows[0].createdAtTimestamp
-                    );
-                    return (
-                      <div key={index} className="bg-[#000] rounded-lg p-4 border border-[#292932]">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-xl font-bold text-white">USDC {">"} ETH</h3>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 mb-4">
-                          <div>
-                            <p className="text-[#9b9ba8] text-sm mb-1">Monthly Flow Rate</p>
-                            <p className="text-white font-bold">{parseFloat(monthlyFlowRate).toFixed(2)} USDC / month</p>
-                          </div>
-                          <div>
-                            <p className="text-[#9b9ba8] text-sm mb-1">Total Streamed</p>
-                            <p className="text-white font-bold">{parseFloat(totalStreamed).toFixed(6)} USDC</p>
-                          </div>
-                          <div>
-                            <p className="text-[#9b9ba8] text-sm mb-1">Total Received</p>
-                            <p className="text-white font-bold">{ethers.utils.formatEther(member.account.poolMemberships[0].pool.perUnitSettledValue)} ETH</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-between">
-                          {/*<div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              placeholder="New monthly amount"
-                              value={updateAmount}
-                              onChange={(e) => setUpdateAmount(e.target.value)}
-                              className="bg-[#1a1b1f] w-[125px] text-white rounded px-3 py-2 text-sm"
-                            />
-                            <button 
-                              className="bg-[#1a1b1f] text-white rounded px-4 py-2 text-sm hover:bg-[#2c2d33] transition-colors"
-                            >
-                              Update
-                            </button>
-                          </div>
-                          <button 
-                            className="bg-[#36be91] text-white rounded px-4 py-2 text-sm hover:bg-[#2ea17d] transition-colors"
-                          >
-                            Claim
-                          </button>*/}
-                          <button
-                            ref={setDeleteButtonRef(positionData.pools[0].id)}
-                            onClick={() => handleDelete(positionData.pools[0].id)}
-                            className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
+{activeTab === 'portfolio' && (
+      <div className="max-w-[400px] flex flex-col gap-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-white">Positions</h3>
+        </div>
+        {loading && <p>Loading...</p>}
+        {error && <p>Error: {error.message}</p>}
+        {positionData && positionData.pools.length > 0 && (
+          <div className="grid grid-cols-1 gap-4">
+            {positionData.pools.map((pool, poolIndex) => (
+              pool.poolMembers.map((member, memberIndex) => {
+                const latestOutflow = member.account.outflows
+                  .filter(outflow => outflow.currentFlowRate !== "0")
+                  .sort((a, b) => parseInt(b.createdAtTimestamp) - parseInt(a.createdAtTimestamp))[0];
+
+                if (!latestOutflow) return null; // Skip if no active outflow
+
+                const monthlyFlowRate = calculateMonthlyFlowRate(latestOutflow.currentFlowRate);
+                const totalStreamed = calculateTotalStreamed(
+                  latestOutflow.currentFlowRate,
+                  latestOutflow.createdAtTimestamp
+                );
+
+                return (
+                  <div key={`${poolIndex}-${memberIndex}`} className="bg-[#000] rounded-lg p-4 border border-[#292932]">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-white">USDC {">"} ETH</h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 mb-4">
+                      <div>
+                        <p className="text-[#9b9ba8] text-sm mb-1">Monthly Flow Rate</p>
+                        <p className="text-white font-bold">{parseFloat(monthlyFlowRate).toFixed(2)} USDC / month</p>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-              {(!positionData || positionData.pools.length === 0 || positionData.pools[0].poolMembers.length === 0) && (
-                <p>No positions found.</p>
-              )}
-            </div>
-          )}
+                      <div>
+                        <p className="text-[#9b9ba8] text-sm mb-1">Total Streamed</p>
+                        <p className="text-white font-bold">{parseFloat(totalStreamed).toFixed(6)} USDC</p>
+                      </div>
+                      <div>
+                        <p className="text-[#9b9ba8] text-sm mb-1">Total Received</p>
+                        <p className="text-white font-bold">{ethers.utils.formatEther(member.account.poolMemberships[0].pool.perUnitSettledValue)} ETH</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <button
+                        ref={setDeleteButtonRef(pool.id)}
+                        onClick={() => handleDelete(pool.id)}
+                        className="bg-[#ff4d4f] text-white rounded px-4 py-2 text-sm hover:bg-[#ff7875] transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ))}
+          </div>
+        )}
+        {(!positionData || positionData.pools.length === 0 || positionData.pools.every(pool => pool.poolMembers.length === 0)) && (
+          <p>No positions found.</p>
+        )}
+      </div>
+    )}
         </div>
       </main>
 

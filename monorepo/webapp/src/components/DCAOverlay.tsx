@@ -140,7 +140,7 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
       refetchWithDelay(3000);
     } catch (err) {
       console.error(err);
-      setStatus(`Error: ${(err as Error).message}`);
+      setStatus('Transaction failed. Please try again.');
       setTxSuccessful(false);
     } finally {
       setSendingStream(false);
@@ -218,7 +218,6 @@ const DCAOverlay: React.FC<DCAOverlayProps> = ({ onClose }) => {
           </div>
         )}
       </div>
-
       
     </div>
   );
