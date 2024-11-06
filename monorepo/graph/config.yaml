@@ -6,7 +6,7 @@ networks:
   contracts:
   - name: SBIncentivesApp
     address:
-    - 0x2436029135AdeDcf55F346Da15e525B680b64545
+    - 0x5A42F800e27773d09376464934e59517fDD88371
     handler: src/EventHandlers.ts
     events:
     - event: FlowCreated(address indexed sender, int96 flowRate)
